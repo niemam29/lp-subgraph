@@ -6,7 +6,7 @@ dataSources:
     name: LiquidityPool
     network: mainnet
     source:
-      address: "0x52e6f9E7faf09920e9eb2d8f67d2ce4b7B00C984"
+      address: "0x60Bb892D3a05a223C0D2aC4F1E72C471080367B8"
       abi: LiquidityPool
     mapping:
       kind: ethereum/events
@@ -14,7 +14,7 @@ dataSources:
       language: wasm/assemblyscript
       entities:
         - Deposit
-        - OwnershipTransferred
+        - PoolDepositor
         - Pool
         - Withdraw
       abis:
@@ -23,8 +23,6 @@ dataSources:
       eventHandlers:
         - event: Deposit(indexed address,uint256,uint256,indexed address)
           handler: handleDeposit
-        - event: OwnershipTransferred(indexed address,indexed address)
-          handler: handleOwnershipTransferred
         - event: Pool(indexed address,indexed address,uint256,indexed address)
           handler: handlePool
         - event: Withdraw(indexed address,uint256,uint256,indexed address)

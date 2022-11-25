@@ -1,76 +1,55 @@
 import {
-  Deposit as DepositEvent,
-  OwnershipTransferred as OwnershipTransferredEvent,
-  Pool as PoolEvent,
-  Withdraw as WithdrawEvent
-} from "../generated/LiquidityPool/LiquidityPool"
-import {
-  Deposit,
-  OwnershipTransferred,
-  Pool,
-  Withdraw
-} from "../generated/schema"
+    Deposit as DepositEvent,
+    Pool as PoolEvent,
+    Withdraw as WithdrawEvent,
+} from '../generated/LiquidityPool/LiquidityPool'
+import { Deposit, Pool, PoolDepositor, Withdraw } from '../generated/schema'
 
 export function handleDeposit(event: DepositEvent): void {
-  let entity = new Deposit(
-    event.transaction.hash.concatI32(event.logIndex.toI32())
-  )
-  entity._from = event.params._from
-  entity._valueRewardToken = event.params._valueRewardToken
-  entity._valueLiquidityToken = event.params._valueLiquidityToken
-  entity._pool = event.params._pool
+    const entity = new Deposit(event.transaction.hash.concatI32(event.logIndex.toI32()))
+    entity._valueRewardToken = event.params._valueRewardToken
+    entity._valueLiquidityToken = event.params._valueLiquidityToken
+    entity.pool = event.params._pool
 
-  entity.blockNumber = event.block.number
-  entity.blockTimestamp = event.block.timestamp
-  entity.transactionHash = event.transaction.hash
-
-  entity.save()
-}
-
-export function handleOwnershipTransferred(
-  event: OwnershipTransferredEvent
-): void {
-  let entity = new OwnershipTransferred(
-    event.transaction.hash.concatI32(event.logIndex.toI32())
-  )
-  entity.previousOwner = event.params.previousOwner
-  entity.newOwner = event.params.newOwner
-
-  entity.blockNumber = event.block.number
-  entity.blockTimestamp = event.block.timestamp
-  entity.transactionHash = event.transaction.hash
-
-  entity.save()
+    let depositor = PoolDepositor.load(event.params._from)
+    if (depositor == null) {
+        depositor = new PoolDepositor(event.params._from)
+        depositor.pool = event.params._pool
+        depositor.depositorAddress = event.params._from
+        depositor.tokenADepositedAmount = event.params._valueRewardToken
+        depositor.tokenBDepositedAmount = event.params._valueLiquidityToken
+        depositor.save()
+        entity.depositor = depositor.id
+    } else {
+        entity.depositor = event.params._from
+        depositor.tokenADepositedAmount = depositor.tokenADepositedAmount.plus(event.params._valueRewardToken)
+        depositor.tokenBDepositedAmount = depositor.tokenADepositedAmount.plus(event.params._valueLiquidityToken)
+        depositor.save()
+    }
+    entity.save()
 }
 
 export function handlePool(event: PoolEvent): void {
-  let entity = new Pool(
-    event.transaction.hash.concatI32(event.logIndex.toI32())
-  )
-  entity._tokenAAdress = event.params._tokenAAdress
-  entity._tokenBAdress = event.params._tokenBAdress
-  entity.price = event.params.price
-  entity._poolAdress = event.params._poolAdress
+    const entity = new Pool(event.params._poolAdress)
+    entity._tokenAAdress = event.params._tokenAAdress
+    entity._tokenBAdress = event.params._tokenBAdress
+    entity.price = event.params.price
 
-  entity.blockNumber = event.block.number
-  entity.blockTimestamp = event.block.timestamp
-  entity.transactionHash = event.transaction.hash
-
-  entity.save()
+    entity.save()
 }
 
 export function handleWithdraw(event: WithdrawEvent): void {
-  let entity = new Withdraw(
-    event.transaction.hash.concatI32(event.logIndex.toI32())
-  )
-  entity._to = event.params._to
-  entity._valueRewardToken = event.params._valueRewardToken
-  entity._valueLiquidityToken = event.params._valueLiquidityToken
-  entity._pool = event.params._pool
+    const entity = new Withdraw(event.transaction.hash.concatI32(event.logIndex.toI32()))
+    entity._to = event.params._to
+    entity._valueRewardToken = event.params._valueRewardToken
+    entity._valueLiquidityToken = event.params._valueLiquidityToken
+    entity._pool = event.params._pool
+    entity.depositor = event.params._to
 
-  entity.blockNumber = event.block.number
-  entity.blockTimestamp = event.block.timestamp
-  entity.transactionHash = event.transaction.hash
+    const depositor = PoolDepositor.load(event.params._to)!
+    depositor.tokenADepositedAmount = depositor.tokenADepositedAmount.minus(event.params._valueRewardToken)
+    depositor.tokenBDepositedAmount = depositor.tokenADepositedAmount.minus(event.params._valueLiquidityToken)
+    depositor.save()
 
-  entity.save()
+    entity.save()
 }
